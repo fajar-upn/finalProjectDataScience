@@ -1,0 +1,90 @@
+---
+title: "Water Quality"
+author: "Fajar"
+date: "5/29/2020"
+output: 
+  pdf_document: default
+  html_document: default
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r global}
+library(shiny)
+library(here)
+library(vroom)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+
+water = read.csv("water.csv", TRUE)
+option_station <- unique(water["STATION.CODE"])
+option_parameter <- colnames(water)[-c(2,3,12)]
+
+```
+
+
+```{r ui}
+ui <- fluidPage(
+  title = "Water Quality",
+  
+  headerPanel("Water Quality in India"),
+  
+  sidebarLayout(
+    sidebarPanel (
+      selectInput(inputId = "code",
+                  label = "station code",
+                  choices = option_station,
+                  multiple = TRUE,
+                  selected = option_parameter[[2]]
+      ),
+      selectInput(inputId = "parameter",
+                  label = "label of parameter",
+                  choices = option_parameter,
+                  selected = "PH"
+      ),
+      textInput(inputId = "parameter_label",
+                label = "parameter",
+                value = ""
+      ),
+      textInput(inputId = "plot_title",
+                label = "title of plt",
+                value = "")
+    ),
+    mainPanel(
+        plotlyOutput(outputId = "aq_plot")
+    )
+  )
+)
+
+```
+
+```{r server}
+server <- function(input, output, session) {
+  aq_plot <- reactive({
+    water %>%
+      filter(STATION.CODE %in% input$code) %>%
+      ggplot(aes_string(x = "year", y = input$parameter, colour = "STATION.CODE")) +
+      geom_line() +
+      labs(
+        x = "",
+        y = ifelse(input$parameter_label == "", input$parameter, input$parameter_label),
+        colour = "STATION.CODE",
+        title = input$plot_title
+      ) +
+      theme_light()
+  })
+  
+  output$aq_plot <- renderPlotly({
+    ggplotly(aq_plot())
+  })
+}
+```
+
+```{r run-app}
+shinyApp(ui = ui, server = server)
+```
